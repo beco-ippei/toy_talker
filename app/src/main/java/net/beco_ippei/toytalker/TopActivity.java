@@ -1,20 +1,21 @@
 package net.beco_ippei.toytalker;
 
+import android.app.LoaderManager;
+import android.content.Intent;
+import android.content.Loader;
+import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.support.v7.app.ActionBarActivity;
-import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Toast;
-import java.util.Locale;
-import android.app.Activity;
-import java.util.ArrayList;
-import android.content.ActivityNotFoundException;
-import android.content.Intent;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.Locale;
 
 
 /**
@@ -22,10 +23,13 @@ import android.widget.Button;
  * マイクに入った音声を認識して，そのまま音声合成し，おうむ返しにスピーカ出力を試みる。
  *
  */
-public class TopActivity extends ActionBarActivity implements OnClickListener, TextToSpeech.OnInitListener
+public class TopActivity extends ActionBarActivity
+        implements OnClickListener, TextToSpeech.OnInitListener,
+            LoaderManager.LoaderCallbacks<String>
 {
     // ダミーの識別子
     private static final int REQUEST_CODE = 0;
+    public final static String EXTRA_MESSAGE = "net.beco_ippei.toywaker.MESSAGE";
 
     // 音声合成用
     TextToSpeech tts = null;
@@ -35,32 +39,126 @@ public class TopActivity extends ActionBarActivity implements OnClickListener, T
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_top);
 
-        Button button1 = (Button) findViewById(R.id.button1);
-        button1.setOnClickListener( this );
+//        Button button1 = (Button) findViewById(R.id.button_send);
+//        button1.setOnClickListener( this );
 
         tts = new TextToSpeech(this, this);
 
+//        Bundle bundle = new Bundle();
+//        getLoaderManager().initLoader(0, bundle, this);
+
+//        // test
+//        jsont = new JsonTest();
+//
+//        try {
+//            System.out.println("content: " + test._request());
+//
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
+    }
+
+    public void sendMessage(View view) {
+        Intent intent = new Intent(this, DisplayMessageActivity.class);
+        EditText editText = (EditText) findViewById(R.id.edit_message);
+        String message = editText.getText().toString();
+        intent.putExtra(EXTRA_MESSAGE, message);
+        startActivity(intent);
+    }
+
+    public void httpRequest(View view) {
+        try {
+            System.out.println("ver 0.1");
+            Bundle bundle = new Bundle();
+            getLoaderManager().initLoader(0, bundle, this);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public Loader<String> onCreateLoader(int id, Bundle bundle) {
+        try {
+            if (id == 0) {
+                EditText editText = (EditText) findViewById(R.id.edit_message);
+                String message = editText.getText().toString();
+
+                // ValuesAsyncLoaderの生成
+                Talker talker = new Talker(this);
+
+                talker.setMessage(message);
+                talker.setNickname("ippei");
+
+                // Web APIの呼び出し
+                talker.forceLoad();
+                return talker;
+            }
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
+
+    }
+
+    @Override
+    public void onLoadFinished(Loader<String> loader, String response) {
+        // 今回は何も処理しない
+        try {
+            // ここでUI処理する？
+            System.out.println("onLoadFinished::["+response+"]");
+
+            Intent intent = new Intent(this, DisplayMessageActivity.class);
+            intent.putExtra(EXTRA_MESSAGE, response);
+            startActivity(intent);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<String> loader) {
+        // 今回は何も処理しない
     }
 
     @Override
     public void onClick(View v)
     {
-        try {
-            // "android.speech.action.RECOGNIZE_SPEECH" を引数にインテント作成
-            Intent intent = new Intent(
-                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+//        try {
+//            JsonTest test = new JsonTest();
+//            HttpResponse response = test._request();
+//
+//            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//            response.getEntity().writeTo(outputStream);
+//
+//            System.out.println("------ before return from '_request()'");
+//
+//            System.out.println(outputStream.toString());
+//
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
 
-            // 「お話しください」の画面で表示される文字列
-            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "音声認識中です");
 
-            // 音声入力開始
-            startActivityForResult(intent, REQUEST_CODE);
-        } catch (ActivityNotFoundException e) {
-            // 非対応の場合
-            Toast.makeText(this, "音声入力に非対応です。", Toast.LENGTH_LONG).show();
-        }
+//        try {
+//
+//            // "android.speech.action.RECOGNIZE_SPEECH" を引数にインテント作成
+//            Intent intent = new Intent(
+//                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+//            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+//                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+//
+//            // 「お話しください」の画面で表示される文字列
+//            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "音声認識中です");
+//
+//            // 音声入力開始
+//            startActivityForResult(intent, REQUEST_CODE);
+//        } catch (ActivityNotFoundException e) {
+//            // 非対応の場合
+//            Toast.makeText(this, "音声入力に非対応です。", Toast.LENGTH_LONG).show();
+//        }
     }
 
 
@@ -113,9 +211,7 @@ public class TopActivity extends ActionBarActivity implements OnClickListener, T
     protected void onDestroy() {
         super.onDestroy();
 
-        if( tts != null )
-        {
-            // 破棄
+        if( tts != null ) {
             tts.shutdown();
         }
     }
