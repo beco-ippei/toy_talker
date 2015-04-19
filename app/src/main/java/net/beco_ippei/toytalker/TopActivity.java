@@ -1,6 +1,7 @@
 package net.beco_ippei.toytalker;
 
 import android.app.LoaderManager;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.Loader;
 import android.os.Bundle;
@@ -10,26 +11,21 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.widget.EditText;
 import android.widget.Toast;
+
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Locale;
 
-
-/**
- * 音声入力（Input）と音声読み上げ（Output）のテスト。
- * マイクに入った音声を認識して，そのまま音声合成し，おうむ返しにスピーカ出力を試みる。
- *
- */
 public class TopActivity extends ActionBarActivity
-        implements OnClickListener, TextToSpeech.OnInitListener,
-            LoaderManager.LoaderCallbacks<String>
+        implements TextToSpeech.OnInitListener, LoaderManager.LoaderCallbacks<JSONObject>
 {
     // ダミーの識別子
     private static final int REQUEST_CODE = 0;
-    public final static String EXTRA_MESSAGE = "net.beco_ippei.toywaker.MESSAGE";
+
+    private String message = null;
 
     // 音声合成用
     TextToSpeech tts = null;
@@ -39,38 +35,20 @@ public class TopActivity extends ActionBarActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_top);
 
-//        Button button1 = (Button) findViewById(R.id.button_send);
-//        button1.setOnClickListener( this );
-
         tts = new TextToSpeech(this, this);
-
-//        Bundle bundle = new Bundle();
-//        getLoaderManager().initLoader(0, bundle, this);
-
-//        // test
-//        jsont = new JsonTest();
-//
-//        try {
-//            System.out.println("content: " + test._request());
-//
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//        }
     }
 
-    public void sendMessage(View view) {
-        Intent intent = new Intent(this, DisplayMessageActivity.class);
-        EditText editText = (EditText) findViewById(R.id.edit_message);
-        String message = editText.getText().toString();
-        intent.putExtra(EXTRA_MESSAGE, message);
-        startActivity(intent);
-    }
-
-    public void httpRequest(View view) {
+    public void sendTextMessage(View view) {
         try {
-            System.out.println("ver 0.1");
+            EditText editText = (EditText) findViewById(R.id.edit_message);
+            this.message = editText.getText().toString();
+
+            // 表示
+            Toast.makeText(this, this.message, Toast.LENGTH_LONG).show();
+            System.out.println("Text :: " + this.message);
+
             Bundle bundle = new Bundle();
-            getLoaderManager().initLoader(0, bundle, this);
+            getLoaderManager().restartLoader(0, bundle, this);
 
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -78,16 +56,13 @@ public class TopActivity extends ActionBarActivity
     }
 
     @Override
-    public Loader<String> onCreateLoader(int id, Bundle bundle) {
+    public Loader<JSONObject> onCreateLoader(int id, Bundle bundle) {
         try {
             if (id == 0) {
-                EditText editText = (EditText) findViewById(R.id.edit_message);
-                String message = editText.getText().toString();
-
                 // ValuesAsyncLoaderの生成
                 Talker talker = new Talker(this);
 
-                talker.setMessage(message);
+                talker.setMessage(this.message);
                 talker.setNickname("ippei");
 
                 // Web APIの呼び出し
@@ -99,19 +74,24 @@ public class TopActivity extends ActionBarActivity
             ex.printStackTrace();
         }
         return null;
-
     }
 
     @Override
-    public void onLoadFinished(Loader<String> loader, String response) {
-        // 今回は何も処理しない
+    public void onLoadFinished(Loader<JSONObject> loader, JSONObject response) {
         try {
-            // ここでUI処理する？
-            System.out.println("onLoadFinished::["+response+"]");
+            // 早すぎると不自然なので少し待つ
+            Thread.sleep(1000);
 
-            Intent intent = new Intent(this, DisplayMessageActivity.class);
-            intent.putExtra(EXTRA_MESSAGE, response);
-            startActivity(intent);
+            String message = response.getString("msg");
+
+            // 表示
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+
+            // 音声合成して発音
+            if(tts.isSpeaking()) {
+                tts.stop();
+            }
+            tts.speak(message, TextToSpeech.QUEUE_FLUSH, null);
 
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -119,48 +99,31 @@ public class TopActivity extends ActionBarActivity
     }
 
     @Override
-    public void onLoaderReset(Loader<String> loader) {
+    public void onLoaderReset(Loader<JSONObject> loader) {
         // 今回は何も処理しない
     }
 
-    @Override
-    public void onClick(View v)
-    {
-//        try {
-//            JsonTest test = new JsonTest();
-//            HttpResponse response = test._request();
-//
-//            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//            response.getEntity().writeTo(outputStream);
-//
-//            System.out.println("------ before return from '_request()'");
-//
-//            System.out.println(outputStream.toString());
-//
-//        } catch (Exception ex) {
-//            ex.printStackTrace();
-//        }
 
+    public void inputSpeech(View view) {
+        try {
+            // "android.speech.action.RECOGNIZE_SPEECH" を引数にインテント作成
+            Intent intent = new Intent(
+                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
 
-//        try {
-//
-//            // "android.speech.action.RECOGNIZE_SPEECH" を引数にインテント作成
-//            Intent intent = new Intent(
-//                    RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-//            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-//                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-//
-//            // 「お話しください」の画面で表示される文字列
-//            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "音声認識中です");
-//
-//            // 音声入力開始
-//            startActivityForResult(intent, REQUEST_CODE);
-//        } catch (ActivityNotFoundException e) {
-//            // 非対応の場合
-//            Toast.makeText(this, "音声入力に非対応です。", Toast.LENGTH_LONG).show();
-//        }
+            // 「お話しください」の画面で表示される文字列
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "音声認識中です");
+
+            // 音声入力開始
+            startActivityForResult(intent, REQUEST_CODE);
+
+        } catch (ActivityNotFoundException e) {
+            // 非対応の場合
+            Toast.makeText(this, "音声入力に非対応です。", Toast.LENGTH_LONG).show();
+        }
+
     }
-
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
@@ -170,17 +133,14 @@ public class TopActivity extends ActionBarActivity
 
             // 音声入力の結果の最上位のみを取得
             ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            String s = results.get(0);
+            this.message = results.get(0);
 
             // 表示
-            Toast.makeText(this, s, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, this.message, Toast.LENGTH_LONG).show();
+            System.out.println("speech :: " + this.message);
 
-            // 音声合成して発音
-            if(tts.isSpeaking()) {
-                tts.stop();
-            }
-            tts.speak(s, TextToSpeech.QUEUE_FLUSH, null);
-//            tts.speak(s, TextToSpeech.QUEUE_FLUSH, null, "");
+            Bundle bundle = new Bundle();
+            getLoaderManager().initLoader(0, bundle, this);
 
         }
 

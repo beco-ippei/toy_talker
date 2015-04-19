@@ -19,7 +19,7 @@ public class DisplayMessageActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
 
         Intent intent = getIntent();
-        String message = intent.getStringExtra(TopActivity.EXTRA_MESSAGE);
+        String message = intent.getStringExtra(TopActivity.class.getPackage().toString());
 
         TextView textView = new TextView(this);
         textView.setTextSize(40);
